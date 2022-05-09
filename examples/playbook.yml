@@ -1,0 +1,13 @@
+---
+- name: Install skyline components
+  hosts: skyline_all
+  gather_facts: "{{ osa_gather_facts | default(True) }}"
+  environment: "{{ deployment_environment_variables | default({}) }}"
+  user: root
+  tags:
+    - skyline
+  roles:
+    - role: "os_skyline"
+    - role: "openstack.osa.system_crontab_coordination"
+      tags:
+        - crontab

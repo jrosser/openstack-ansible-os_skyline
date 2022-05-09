@@ -1,0 +1,81 @@
+# {{ ansible_managed }}
+
+{% for skyline_listen_port in skyline_listen_ports.values() %}
+Listen {{ skyline_bind_address }}:{{ skyline_listen_port }}
+{% endfor %}
+
+# If skyline is being served via SSL from this web server,
+# then we must redirect HTTP requests to HTTPS.
+{% if (skyline_enable_ssl | bool) and not (skyline_external_ssl | bool) %}
+<VirtualHost {{ skyline_bind_address }}:{{ skyline_listen_ports.http }}>
+    ServerName {{ skyline_server_name }}
+    RewriteEngine On
+    RewriteCond %{HTTPS} !=on
+    RewriteRule ^/?(.*) https://%{HTTP_HOST}/$1 [R,L]
+</VirtualHost>
+{% endif %}
+
+# If skyline is being served via SSL via a load balancer, we
+# need to listen via HTTP on this web server. If SSL is not
+# enabled, then the same applies.
+<VirtualHost {{ skyline_bind_address }}:{{ ((skyline_enable_ssl | bool) and not (skyline_external_ssl | bool)) | ternary(skyline_listen_ports.https, skyline_listen_ports.http) }}>
+    ServerName {{ skyline_server_name }}
+    LogLevel  {{ skyline_log_level }}
+    ErrorLog  syslog:daemon
+    CustomLog "|/usr/bin/env logger -p daemon.info -t {{ skyline_system_service_name }}" {{ skyline_apache_custom_log_format }}
+    Options +FollowSymLinks
+{% if (skyline_enable_ssl | bool) and not (skyline_external_ssl | bool) %}
+    SSLEngine on
+    SSLCertificateFile    {{ skyline_ssl_cert }}
+    SSLCertificateKeyFile {{ skyline_ssl_key }}
+    {% if skyline_user_ssl_ca_cert is defined -%}
+    SSLCACertificateFile  {{ skyline_ssl_ca_cert }}
+    {% endif -%}
+    SSLCompression Off
+    SSLProtocol {{ skyline_ssl_protocol }}
+    SSLHonorCipherOrder On
+    {% if skyline_ssl_cipher_suite_tls12 != "" -%}
+    SSLCipherSuite {{ skyline_ssl_cipher_suite_tls12 }}
+    {% endif -%}
+    {% if skyline_ssl_cipher_suite_tls13 != "" -%}
+    SSLCipherSuite TLSv1.3 {{ skyline_ssl_cipher_suite_tls13 }}
+    {% endif -%}
+    SetEnvIf User-Agent ".*MSIE.*" nokeepalive ssl-unclean-shutdown
+{% endif %}
+{% if (skyline_enable_ssl | bool) and (skyline_external_ssl | bool) %}
+    RequestHeader set {{ skyline_secure_proxy_ssl_header }} "https"
+{% elif not (skyline_enable_ssl | bool) and (skyline_external_ssl | bool) %}
+    RequestHeader set {{ skyline_secure_proxy_ssl_header }} "http"
+{% endif %}
+
+    SSLProxyEngine on
+    SSLProxyCheckPeerName off
+
+    DocumentRoot /var/www/html/static
+
+    ProxyPass /api/openstack/skyline/ unix:////var/lib/skyline/skyline.sock|http://127.0.1.1/
+    ProxyPassReverse / unix:///run/gunicorn_site0.sock|http://127.0.1.1/
+
+    # OMG! Fixme - feels like this should all be handled at haproxy
+    #ProxyPass /api/openstack/regionone/neutron/ https://172.29.236.101:9696/
+    #ProxyPassReverse https://172.29.236.101:9696/ /api/openstack/regionone/neutron/
+
+    #ProxyPass /api/openstack/regionone/keystone/ https://172.29.236.101:5000/
+    #ProxyPassReverse https://172.29.236.101:5000/ /api/openstack/regionone/keystone/
+
+    #ProxyPass /api/openstack/regionone/placement/ https://172.29.236.101:8780/
+    #ProxyPassReverse https://172.29.236.101:8780/ /api/openstack/regionone/placement/
+
+    #ProxyPass /api/openstack/regionone/glance/ https://172.29.236.101:9292/
+    #ProxyPassReverse https://172.29.236.101:9292/ /api/openstack/regionone/glance/
+
+    #ProxyPass /api/openstack/regionone/nova/ https://172.29.236.101:8774/
+    #ProxyPassReverse https://172.29.236.101:8774/ /api/openstack/regionone/nova/
+
+    #ProxyPass /api/openstack/regionone/cinder/ https://172.29.236.101:8776/
+    #ProxyPassReverse https://172.29.236.101:8776/ /api/openstack/regionone/cinder/
+
+    #ProxyPass /api/openstack/regionone/heat/ https://172.29.236.101:8776/
+    #ProxyPassReverse https://172.29.236.101:8776/ /api/openstack/regionone/cinder/
+
+</VirtualHost>

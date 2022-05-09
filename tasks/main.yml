@@ -1,0 +1,103 @@
+---
+# Copyright 2022, BBC R&D
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+- name: Gather variables for each operating system
+  include_vars: "{{ lookup('first_found', params) }}"
+  vars:
+    params:
+      files:
+        - "{{ ansible_facts['distribution'] | lower }}-{{ ansible_facts['distribution_version'] | lower }}.yml"
+        - "{{ ansible_facts['distribution'] | lower }}-{{ ansible_facts['distribution_major_version'] | lower }}.yml"
+        - "{{ ansible_facts['os_family'] | lower }}-{{ ansible_facts['distribution_major_version'] | lower }}.yml"
+        - "{{ ansible_facts['distribution'] | lower }}.yml"
+        - "{{ ansible_facts['os_family'] | lower }}-{{ ansible_facts['distribution_version'].split('.')[0] }}.yml"
+        - "{{ ansible_facts['os_family'] | lower }}.yml"
+      paths:
+        - "{{ role_path }}/vars"
+  tags:
+    - always
+
+- include_role:
+    name: openstack.osa.db_setup
+    apply:
+      tags:
+        - common-db
+        - skyline-config
+  when:
+    - _skyline_is_first_play_host
+  vars:
+    _oslodb_setup_host: "{{ skyline_db_setup_host }}"
+    _oslodb_ansible_python_interpreter: "{{ skyline_db_setup_python_interpreter }}"
+    _oslodb_setup_endpoint: "{{ skyline_galera_address }}"
+    _oslodb_setup_port: "{{ skyline_galera_port }}"
+    _oslodb_databases:
+      - name: "{{ skyline_galera_database }}"
+        users:
+          - username: "{{ skyline_galera_user }}"
+            password: "{{ skyline_galera_password }}"
+  tags:
+    - always
+
+- import_tasks: skyline_pre_install.yml
+  tags:
+    - skyline-install
+
+- import_tasks: skyline_install.yml
+  tags:
+    - skyline-install
+
+- import_tasks: skyline_post_install.yml
+  tags:
+    - skyline-config
+
+- import_tasks: skyline_db_sync.yml
+  when: _skyline_is_first_play_host
+  tags:
+    - skyline-config
+
+- include_role:
+    name: openstack.osa.service_setup
+    apply:
+      tags:
+        - common-service
+        - skyline-config
+  vars:
+    _service_adminuri_insecure: "{{ keystone_service_adminuri_insecure }}"
+    _service_in_ldap: "{{ skyline_service_in_ldap }}"
+    _service_setup_host: "{{ skyline_service_setup_host }}"
+    _service_setup_host_python_interpreter: "{{ skyline_service_setup_host_python_interpreter }}"
+    _service_project_name: "{{ skyline_service_project_name }}"
+    _service_region: "{{ skyline_service_region }}"
+    _service_users:
+      - name: "{{ skyline_service_user_name }}"
+        password: "{{ skyline_service_password }}"
+        role: "{{ skyline_role_name }}"
+    _service_endpoints: []
+  when: _skyline_is_first_play_host
+  tags:
+    - always
+
+- import_tasks: skyline_apache.yml
+  tags:
+    - skyline-config
+    - skyline-apache
+
+- name: Install skyline console
+  import_tasks: skyline_console_{{ skyline_console_install_method }}.yml
+  tags:
+    - skyline-console
+
+- name: Flush handlers
+  meta: flush_handlers

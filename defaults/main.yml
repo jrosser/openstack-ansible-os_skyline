@@ -1,0 +1,113 @@
+# Copyright 2022, BBC R&D
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Set installation method
+skyline_venv_python_executable: "{{ openstack_venv_python_executable | default('python3') }}"
+
+# Set the package install state for distribution packages
+# Options are 'present' and 'latest'
+skyline_package_state: "{{ package_state | default('latest') }}"
+
+# Set the host which will execute the shade modules
+# for the service setup. The host must already have
+# clouds.yaml properly configured.
+skyline_service_setup_host: "{{ openstack_service_setup_host | default('localhost') }}"
+skyline_service_setup_host_python_interpreter: "{{ openstack_service_setup_host_python_interpreter | default((skyline_service_setup_host == 'localhost') | ternary(ansible_playbook_python, ansible_facts['python']['executable'])) }}"
+
+skyline_git_repo: https://opendev.org/openstack/skyline-apiserver
+skyline_git_install_branch: master
+skyline_upper_constraints_url: "{{ requirements_git_url | default('https://releases.openstack.org/constraints/upper/' ~ requirements_git_install_branch | default('master')) }}"
+skyline_git_constraints: []
+#  - "--constraint {{ skyline_upper_constraints_url }}"
+
+skyline_pip_install_args: "{{ pip_install_options | default('') }}"
+
+# Name of the virtual env to deploy into
+skyline_venv_tag: "{{ venv_tag | default('untagged') }}"
+skyline_bin: "/openstack/venvs/skyline-{{ skyline_venv_tag }}/bin"
+
+## Database info
+skyline_db_setup_host: "{{ openstack_db_setup_host | default('localhost') }}"
+skyline_db_setup_python_interpreter: "{{ openstack_db_setup_python_interpreter | default((skyline_db_setup_host == 'localhost') | ternary(ansible_playbook_python, ansible_facts['python']['executable'])) }}"
+skyline_galera_address: "{{ galera_address | default('127.0.0.1') }}"
+skyline_galera_database: skyline
+skyline_galera_user: skyline
+skyline_galera_password: skyline   #FIXME!
+skyline_galera_use_ssl: "{{ galera_use_ssl | default(False) }}"
+skyline_galera_ssl_ca_cert: "{{ galera_ssl_ca_cert | default('') }}"
+skyline_galera_port: "{{ galera_port | default('3306') }}"
+skyline_db_max_overflow: "{{ openstack_db_max_overflow | default('50') }}"
+skyline_db_max_pool_size: "{{ openstack_db_max_pool_size | default('5') }}"
+skyline_db_pool_timeout: "{{ openstack_db_pool_timeout | default('30') }}"
+skyline_db_connection_recycle_time: "{{ openstack_db_connection_recycle_time | default('600') }}"
+
+## System User / Group
+skyline_system_user_name: skyline
+skyline_system_group_name: skyline
+skyline_system_comment: skyline system user
+skyline_system_shell: /bin/false
+skyline_system_user_home: "/var/lib/{{ skyline_system_user_name }}"
+
+## Service user
+skyline_service_user_name: skyline
+skyline_service_password: skyline   #FIXME!
+skyline_service_project_name: service
+skyline_service_project_domain_id: default
+skyline_service_user_domain_id: default
+skyline_service_in_ldap: "{{ service_ldap_backend_enabled | default(False) }}"
+skyline_role_name: admin
+
+# API
+skyline_bind_address: "{{ openstack_service_bind_address | default('0.0.0.0') }}"
+skyline_service_port: 9999
+
+# Apache
+skyline_listen_ports:
+  http: "80"
+  https: "443"
+
+skyline_static_files_dir: /var/www/html/
+skyline_bind_address: "{{ openstack_service_bind_address | default('0.0.0.0') }}"
+skyline_enable_ssl: false
+skyline_external_ssl: "{{ (openstack_external_ssl | default(False)) | bool }}"
+skyline_server_name: "{{ ansible_facts['fqdn'] | default('horizon') }}"
+skyline_log_level: info
+# It's combined log format without datetime, since it's already present in journald
+skyline_apache_custom_log_format: '"%h %l %u \"%r\" %>s %b \"%{Referer}i\" \"%{User-agent}i\""'
+
+# Set this to the header that your device sets when doing ssl termination
+# Note (odyssey4me):
+# This variable is actually badly named, as it applies
+# settings which have nothing to do with SSL.
+skyline_secure_proxy_ssl_header: "X-Forwarded-Proto"
+skyline_apache_servertokens: "Prod"
+skyline_apache_serversignature: "Off"
+
+# Common pip packages
+skyline_pip_packages:
+  - "git+{{ skyline_git_repo }}@{{ skyline_git_install_branch }}#egg=skyline"
+  - gunicorn
+
+## Service Name-Group Mapping
+skyline_services:
+  skyline-api:
+    group: skyline
+    service_name: skyline-apiserver
+    init_config_overrides: "{{ skyline_apiserver_init_overrides }}"
+    start_order: 1
+    execstarts: "{{ skyline_bin }}/gunicorn -c /etc/skyline/gunicorn.py skyline_apiserver.main:app"
+
+## Tunable overrides
+skyline_apiserver_init_overrides: {}
+skyline_skyline_yaml_overrides: {}

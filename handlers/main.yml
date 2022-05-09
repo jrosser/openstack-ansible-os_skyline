@@ -1,0 +1,58 @@
+---
+# Copyright 2022, BBC R&D
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+
+- name: Stop services
+  service:
+    name: "{{ item.service_name }}"
+    enabled: yes
+    state: "stopped"
+    daemon_reload: yes
+  with_items: "{{ filtered_skyline_services }}"
+  register: _stop
+  until: _stop is success
+  retries: 5
+  delay: 2
+  listen:
+    - "Restart skyline services"
+    - "venv changed"
+
+- name: Start services
+  service:
+    name: "{{ item.service_name }}"
+    enabled: yes
+    state: "started"
+    daemon_reload: yes
+  with_items: "{{ filtered_skyline_services }}"
+  register: _start
+  until: _start is success
+  retries: 5
+  delay: 2
+  listen:
+    - "Restart skyline services"
+    - "venv changed"
+
+- name: Restart apache2
+  service:
+    name: "{{ skyline_system_service_name }}"
+    enabled: yes
+    state: "restarted"
+    daemon_reload: "{{ (ansible_facts['service_mgr'] == 'systemd') | ternary('yes', omit) }}"
+  listen:
+    - "venv changed"
+
+- meta: noop
+  listen: Manage LB
+  when: false
