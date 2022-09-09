@@ -20,7 +20,7 @@
     enabled: yes
     state: "stopped"
     daemon_reload: yes
-  with_items: "{{ filtered_skyline_services }}"
+  loop: "{{ filtered_skyline_services }}"
   register: _stop
   until: _stop is success
   retries: 5
@@ -35,7 +35,7 @@
     enabled: yes
     state: "started"
     daemon_reload: yes
-  with_items: "{{ filtered_skyline_services }}"
+  loop: "{{ filtered_skyline_services }}"
   register: _start
   until: _start is success
   retries: 5
@@ -44,7 +44,7 @@
     - "Restart skyline services"
     - "venv changed"
 
-- name: Restart apache2
+- name: Restart web server
   service:
     name: "{{ skyline_system_service_name }}"
     enabled: yes

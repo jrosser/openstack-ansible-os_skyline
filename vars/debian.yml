@@ -20,28 +20,8 @@ cache_timeout: 600
 # Common apt packages
 skyline_distro_packages:
  - git
- - apache2
+ - nginx
+
+skyline_system_service_name: nginx
 
 skyline_devel_distro_packages: []
-
-skyline_apache_conf: "/etc/apache2/apache2.conf"
-skyline_apache_security_conf: "/etc/apache2/conf-available/security.conf"
-
-skyline_apache_site_available: "/etc/apache2/sites-available/openstack-skyline-dashboard.conf"
-skyline_apache_site_enabled: "/etc/apache2/sites-enabled/openstack-skyline-dashboard.conf"
-
-skyline_apache_configs:
-  - { src: "skyline_apache_ports.conf.j2", dest: "/etc/apache2/ports.conf", owner: "root", group: "root" }
-  - { src: "openstack_skyline_dashboard.conf.j2", dest: "{{ skyline_apache_site_available }}", owner: "root", group: "root" }
-
-skyline_apache_default_sites:
-  - "/etc/apache2/sites-enabled/000-default.conf"
-  - "/etc/apache2/conf-enabled/other-vhosts-access-log.conf"
-
-skyline_system_service_name: apache2
-
-skyline_apache_modules:
-  - name: "proxy"
-    state: "present"
-  - name: "proxy_http"
-    state: "present"

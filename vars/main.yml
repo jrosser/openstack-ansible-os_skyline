@@ -23,17 +23,27 @@ skyline_package_list: |-
 # Compile a list of the services on a host based on whether
 # the host is in the host group and the service is enabled.
 # The service list is provided in the defined start order.
-
 filtered_skyline_services: |-
   {% set services = [] %}
   {% for key, value in skyline_services.items() %}
-  {%   if (value['group'] in group_names) and
-          (('condition' not in value) or
-           ('condition' in value and value['condition'])) and
-           not ('wsgi_app' in value and value['wsgi_app']) %}
-  {%     set _ = value.update({'service_key': key}) %}
-  {%     set _ = services.append(value) %}
-  {%   endif %}
+  {%   set _ = value.update({'service_key': key}) %}
+  {%   set _ = services.append(value) %}
   {% endfor %}
   {{ services | sort(attribute='start_order') }}
 
+skyline_service_mapping:
+  baremetal: ironic
+  compute: nova
+  container: zun
+  container-infra: magnum
+  database: trove
+  identity: keystone
+  image: glance
+  key-manager: barbican
+  load-balancer: octavia
+  network: neutron
+  object-store: swift
+  orchestration: heat
+  placement: placement
+  sharev2: manilav2
+  volumev3: cinder

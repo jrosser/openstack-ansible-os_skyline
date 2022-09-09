@@ -13,25 +13,28 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+- name: Define skyline_lib_dir when it's not set
+  when: skyline_lib_dir is not defined
+  block:
+    - name: Find the venv's python version
+      command: >-
+        {{ skyline_bin }}/{{ skyline_venv_python_executable }} -c 'import skyline_apiserver; print(skyline_apiserver.__file__)'
+      changed_when: false
+      register: _skyline_python_venv_details
+
+    - name: Set python lib dir fact
+      set_fact:
+        skyline_lib_dir: "{{ _skyline_python_venv_details.stdout | dirname | dirname }}"
+
 - name: Create gunicorn config
   template:
-    src: "{{ item.src }}"
-    dest: "{{ item.dest }}"
+    src: "gunicorn.py.j2"
+    dest: "/etc/skyline/gunicorn.py"
     owner: "root"
     group: "{{ item.group|default(skyline_system_group_name) }}"
     mode: "0640"
-  with_items:
-    - src: "gunicorn.py.j2"
-      dest: "/etc/skyline/gunicorn.py"
   notify:
     - Restart skyline services
-
-- name: Copy alembic config
-  copy:
-    src: alembic.ini
-    dest: /etc/skyline/alembic.ini
-    group: "{{ skyline_system_group_name }}"
-    owner: "{{ skyline_system_group_name }}"
 
 - name: Create skyline configs
   openstack.config_template.config_template:
@@ -42,10 +45,30 @@
     mode: "0640"
     config_overrides: "{{ item.config_overrides }}"
     config_type: "{{ item.config_type }}"
-  with_items:
+  loop:
     - src: "skyline.yaml.j2"
       dest: "/etc/skyline/skyline.yaml"
       config_overrides: "{{ skyline_skyline_yaml_overrides }}"
       config_type: "yaml"
+  notify:
+    - Restart skyline services
+
+- name: Get OpenStack endpoints
+  command: >-
+    openstack --os-cloud default endpoint list --format yaml --interface {{ skyline_interface }}
+  delegate_to: "{{ skyline_service_setup_host }}"
+  register: _endpoint_list
+
+- name: Set endpoint fact
+  set_fact:
+    openstack_service_endpoints: "{{ _endpoint_list.stdout | from_yaml }}"
+
+- name: Create nginx config
+  template:
+    src: "nginx.conf.j2"
+    dest: "/etc/nginx/sites-enabled/skyline.conf"
+    owner: "root"
+    group: "root"
+    mode: "0644"
   notify:
     - Restart skyline services
