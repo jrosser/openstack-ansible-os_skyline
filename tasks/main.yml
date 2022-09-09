@@ -89,15 +89,5 @@
   tags:
     - always
 
-- import_tasks: skyline_apache.yml
-  tags:
-    - skyline-config
-    - skyline-apache
-
-- name: Install skyline console
-  import_tasks: skyline_console_{{ skyline_console_install_method }}.yml
-  tags:
-    - skyline-console
-
 - name: Flush handlers
   meta: flush_handlers

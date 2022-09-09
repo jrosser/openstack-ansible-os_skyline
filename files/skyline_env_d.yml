@@ -19,4 +19,3 @@ physical_skel:
   skyline_hosts:
     belongs_to:
       - hosts
-

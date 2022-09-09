@@ -3,12 +3,16 @@ default:
   access_token_renew: 1800
   cors_allow_origins: []
   database_url: mysql://{{ skyline_galera_user }}:{{ skyline_galera_password }}@{{ skyline_galera_address }}/{{ skyline_galera_database }}
-  debug: false
+  debug: {{ skyline_debug }}
   log_dir: /var/log/skyline
-  secret_key: aCtmgbcUqYUy_HNVg5BDXCaeJgJQzHJXwqbXr0Nmb2o
+  prometheus_basic_auth_password: "{{ skyline_prometheus_basic_auth_password }}"
+  prometheus_basic_auth_user: "{{ skyline_prometheus_basic_auth_user }}"
+  prometheus_enable_basic_auth: false
+  prometheus_endpoint: http://localhost:9091
+  secret_key: {{ skyline_secret_key }}
   session_name: session
 developer:
-  show_raw_sql: false
+  show_raw_sql: {{ skyline_debug }}
 openstack:
   base_domains:
   - heat_user_domain
@@ -59,24 +63,18 @@ openstack:
   - octavia_project_reader
   default_region: RegionOne
   extension_mapping:
+    floating-ip-port-forwarding: neutron_port_forwarding
     fwaas_v2: neutron_firewall
+    qos: neutron_qos
     vpnaas: neutron_vpn
-  interface_type: public
+  interface_type: {{ skyline_interface }}
   keystone_url: {{ keystone_service_internalurl }}
   nginx_prefix: /api/openstack
   reclaim_instance_interval: 604800
-  service_mapping:
-    baremetal: ironic
-    compute: nova
-    database: trove
-    identity: keystone
-    image: glance
-    load-balancer: octavia
-    network: neutron
-    object-store: swift
-    orchestration: heat
-    placement: placement
-    volumev3: cinder
+  service_mapping: {{ skyline_service_mapping }}
+  sso_enabled: false
+  sso_protocols:
+  - openid
   system_admin_roles:
   - admin
   - system_admin

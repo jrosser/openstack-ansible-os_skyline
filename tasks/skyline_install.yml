@@ -13,11 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-- name: Refresh local facts to ensure the skyline section is present
-  setup:
-    filter: ansible_local
-    gather_subset: "!all"
-
 - name: Install distro packages
   package:
     name: "{{ skyline_package_list }}"
@@ -49,18 +44,6 @@
         option: "venv_tag"
         value: "{{ skyline_venv_tag }}"
 
-- name: Record the need for a service restart
-  ini_file:
-    dest: "/etc/ansible/facts.d/openstack_ansible.fact"
-    section: "skyline"
-    option: "need_service_restart"
-    value: true
-  when: (install_packages is changed) or
-        ('need_service_restart' not in ansible_local['openstack_ansible']['skyline'])
-
-- debug: var=skyline_services
-- debug: var=filtered_skyline_services
-
 - name: Run the systemd service role
   include_role:
     name: systemd_service
@@ -81,7 +64,7 @@
         execstarts: "{{ service_var.execstarts }}"
         execreloads: "{{ service_var.execreloads | default([]) }}"
         config_overrides: "{{ service_var.init_config_overrides }}"
-  with_items: "{{ filtered_skyline_services }}"
+  loop: "{{ filtered_skyline_services }}"
   loop_control:
     loop_var: service_var
   tags:

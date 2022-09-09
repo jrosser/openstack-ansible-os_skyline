@@ -38,7 +38,7 @@
     owner: "{{ item.owner|default(skyline_system_user_name) }}"
     group: "{{ item.group|default(skyline_system_group_name) }}"
     mode: "{{ item.mode|default('0755') }}"
-  with_items:
+  loop:
     - path: "/openstack"
       mode: "0755"
       owner: "root"
